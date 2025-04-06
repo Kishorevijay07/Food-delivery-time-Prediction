@@ -1,43 +1,80 @@
-
-import heapq
+import pandas as pd
 import numpy as np
+import plotly.express as px
 
-graph = {
-    'Restaurant': [('A', 2), ('B', 5)],
-    'A': [('Restaurant', 2), ('C', 4)],
-    'B': [('Restaurant', 5), ('C', 1), ('D', 7)],
-    'C': [('A', 4), ('B', 1), ('Customer', 3)],
-    'D': [('B', 7), ('Customer', 2)],
-    'Customer': [('C', 3), ('D', 2)]
-}
-def dijkstra(graph, start):
-    distances = {node: float('inf') for node in graph}
-    distances[start] = 0
-    queue = [(0, start)]
-
-    while queue:
-        current_dist, current_node = heapq.heappop(queue)
-        for neighbor, weight in graph[current_node]:
-            distance = current_dist + weight
-            if distance < distances[neighbor]:
-                distances[neighbor] = distance
-                heapq.heappush(queue, (distance, neighbor))
-    return distances
+data = pd.read_excel("D:/PROGRAMMING/DWM/food delivery time/Food Delivery Time Prediction Case Study.xlsx")
+#print(data.head())
+#data.info()
 
 
-shortest_distances = dijkstra(graph, 'Restaurant')
-shortest_distance = shortest_distances['Customer']
+# Set the earth's radius (in kilometers)
+R = 6371
 
-print(f"Shortest Distance from Restaurant to Customer: {shortest_distance} km")
+# Convert degrees to radians
+def deg_to_rad(degrees):
+    return degrees * (np.pi/180)
+
+# Function to calculate the distance between two points using the haversine formula
+def distcalculate(lat1, lon1, lat2, lon2):
+    d_lat = deg_to_rad(lat2-lat1)
+    d_lon = deg_to_rad(lon2-lon1)
+    a = np.sin(d_lat/2)**2 + np.cos(deg_to_rad(lat1)) * np.cos(deg_to_rad(lat2)) * np.sin(d_lon/2)**2
+    c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1-a))
+    return R * c
+  
+# Calculate the distance between each pair of points
+data['distance'] = np.nan
+
+for i in range(len(data)):
+    data.loc[i, 'distance'] = distcalculate(data.loc[i, 'Restaurant_latitude'], 
+                                        data.loc[i, 'Restaurant_longitude'], 
+                                        data.loc[i, 'Delivery_location_latitude'], 
+                                        data.loc[i, 'Delivery_location_longitude'])
+    
+print(data.head())
+
+
+from sklearn.model_selection import train_test_split
+x = np.array(data[["Delivery_person_Age", 
+                   "Delivery_person_Ratings", 
+                   "distance"]])
+y = np.array(data[["Time_taken(min)"]])
+xtrain, xtest, ytrain, ytest = train_test_split(x, y, 
+                                                test_size=0.10, 
+                                                random_state=42)
+
+# # creating the LSTM neural network model
+# from keras.models import Sequential
+# from keras.layers import Dense, LSTM
+# model = Sequential()
+# model.add(LSTM(128, return_sequences=True, input_shape= (xtrain.shape[1], 1)))
+# model.add(LSTM(64, return_sequences=False))
+# model.add(Dense(25))
+# model.add(Dense(1))
+# model.summary()
 
 def predict_delivery_time(age, rating, distance):
+    # Simple prediction formula for demonstration
     time = (distance * 2) + (30 - age) * 0.5 + (5 - rating) * 3
-    return max(time, 0)
+    return max(time, 0)  # Ensures that time is not negative
 
+# Define the input features
+age = 23
+rating = 4.9
+distance = 12
 
-delivery_person_age = 25
-delivery_person_rating = 4.7
+# Now you can create the feature array
+features = np.array([[age, rating, distance]])
 
-predicted_time = predict_delivery_time(delivery_person_age, delivery_person_rating, shortest_distance)
+print("Food Delivery Time Prediction")
 
+# Call the prediction function
+predicted_time = predict_delivery_time(age, rating, distance)
 print(f"Predicted Delivery Time: {predicted_time:.2f} minutes")
+
+# import tensorflow as tf
+# from tensorflow.keras.models import Sequential
+# from tensorflow.keras.layers import Dense, LSTM
+
+# print("TensorFlow version:", tf.__version__)
+
